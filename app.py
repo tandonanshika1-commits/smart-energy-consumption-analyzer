@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, redirect, session, flash, Response
 import psycopg2
+import os
 from werkzeug.security import generate_password_hash, check_password_hash
 import random, csv, io
 import numpy as np
@@ -10,6 +11,11 @@ app = Flask(__name__)
 app.secret_key = "secret123"
 
 def get_db():
+    database_url = os.environ.get("DATABASE_URL")
+
+    if database_url:
+        return psycopg2.connect(database_url)
+
     return psycopg2.connect(
         host="localhost",
         database="energy_db",
