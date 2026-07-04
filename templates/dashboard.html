@@ -1,0 +1,413 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div style="max-width: 1100px; width: 100%; margin: 0 auto; padding: 20px 0;">
+
+    <div style="text-align:center; margin-bottom:30px; animation: fadeIn 0.4s ease forwards;">
+        <h2 style="font-size: 32px; font-weight: 700; margin-bottom: 8px;">👋 Welcome, {{ username }}</h2>
+        <p style="font-size:14px; color:var(--text-secondary);">
+            Last Updated: {{ latest_time }}
+        </p>
+    </div>
+
+    <!-- Summary Metrics -->
+    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap:20px; margin-bottom:30px;">
+        <div class="summary-card glass-card">
+            <h4>⚡ Total Energy</h4>
+            <p>{{ total_usage }} units</p>
+        </div>
+
+        <div class="summary-card glass-card">
+            <h4>💰 Estimated Bill</h4>
+            <p>₹{{ estimated_bill }}</p>
+        </div>
+
+        <div class="summary-card glass-card">
+            <h4>🔌 Appliances</h4>
+            <p>{{ total_appliances }}</p>
+        </div>
+
+        <div class="summary-card glass-card">
+            <h4>🤖 Next Usage</h4>
+            <p style="font-size: 20px;">
+                {% if predicted_value %}
+                    {{ predicted_value }} units
+                {% else %}
+                    N/A
+                {% endif %}
+            </p>
+        </div>
+
+        <div class="summary-card glass-card">
+            <h4>📅 Next Day</h4>
+            <p style="font-size: 20px;">
+                {% if predicted_day_value %}
+                    {{ predicted_day_value }} units
+                {% else %}
+                    N/A
+                {% endif %}
+            </p>
+        </div>
+
+        <div class="summary-card glass-card">
+            <h4>📆 Next Month</h4>
+            <p style="font-size: 20px;">
+                {% if predicted_month_value %}
+                    {{ predicted_month_value }} units
+                {% else %}
+                    N/A
+                {% endif %}
+            </p>
+        </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="tab-buttons">
+        <button id="btn-dashboard" class="active" onclick="showSection('dashboard')">Dashboard</button>
+        <button id="btn-manage" onclick="showSection('manage')">Manage Data</button>
+        <button id="btn-powerbi" onclick="showSection('powerbi')">Power BI Dashboard</button>
+    </div>
+
+    <!-- Dashboard Section -->
+    <div id="dashboard" style="animation: fadeIn 0.5s ease forwards;">
+
+        <div class="glass-card" style="margin-bottom: 24px; border-left: 5px solid #10b981;">
+            <h3>💡 Smart Insight</h3>
+            <p style="margin-bottom: 8px;"><b>Top Consumer:</b> <span style="color: #10b981; font-weight: 600;">{{ top_appliance }}</span></p>
+            <p style="font-size: 15px;">{{ suggestion }}</p>
+        </div>
+
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap:24px; margin-bottom: 24px;">
+            <div class="glass-card">
+                <h3>📊 Appliance-wise Consumption</h3>
+                <div style="height:320px; width:100%;">
+                    <canvas id="energyChart"></canvas>
+                </div>
+            </div>
+
+            <div class="glass-card">
+                <h3>📈 Energy Trend & Prediction</h3>
+                <div style="height:320px; width:100%;">
+                    <canvas id="predictionChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap:24px;">
+            <div class="glass-card">
+                <h3>📅 Filter Energy Usage</h3>
+                <form method="GET" action="/">
+                    <label style="display:block; margin-bottom:6px; font-size:13px; font-weight:600; color:var(--text-secondary);">Start Date</label>
+                    <input type="date" name="start_date" value="{{ start_date or '' }}">
+
+                    <label style="display:block; margin-bottom:6px; font-size:13px; font-weight:600; color:var(--text-secondary);">End Date</label>
+                    <input type="date" name="end_date" value="{{ end_date or '' }}">
+
+                    <button class="primary-btn" type="submit">Apply Filter</button>
+                </form>
+
+                <a href="/" style="display:block; margin-top:12px;">
+                    <button class="primary-btn" style="background: var(--card-bg); color: var(--text-primary); border: 1px solid var(--input-border); box-shadow: none;">Clear Filter</button>
+                </a>
+            </div>
+
+            <div class="glass-card" style="overflow-x: auto;">
+                <h3>⏱ Usage History</h3>
+
+                {% if energy_data %}
+                <table>
+                    <tr>
+                        <th>Appliance</th>
+                        <th>Energy</th>
+                        <th>Date & Time</th>
+                    </tr>
+
+                    {% for row in energy_data %}
+                    <tr>
+                        <td style="font-weight: 500;">{{ row[0] }}</td>
+                        <td><span style="background: rgba(59, 130, 246, 0.1); color: #3b82f6; padding: 4px 8px; border-radius: 6px; font-size: 13px; font-weight: 600;">{{ row[1] }} units</span></td>
+                        <td style="font-size: 14px; color: var(--text-secondary);">{{ row[2] }}</td>
+                    </tr>
+                    {% endfor %}
+                </table>
+                {% else %}
+                <p style="text-align: center; padding: 20px; color: var(--text-secondary);">No data found for selected date range.</p>
+                {% endif %}
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Manage Section -->
+    <div id="manage" style="display:none; animation: fadeIn 0.5s ease forwards;">
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap:24px;">
+            
+            <div class="glass-card">
+                <h3>➕ Add Appliance</h3>
+                <form method="POST" action="/add-appliance">
+                    <input type="text" name="name" placeholder="E.g., Air Conditioner" required>
+                    <button class="primary-btn">Add Appliance</button>
+                </form>
+            </div>
+
+            <div class="glass-card">
+                <h3>🔍 Your Appliances</h3>
+                <input type="text" id="searchBox" placeholder="Search appliance..." onkeyup="searchAppliance()">
+
+                <ul class="appliance-list">
+                    {% for a in appliances %}
+                    <li>
+                        <span style="font-weight: 500;">{{ a[1] }}</span>
+                        <a href="/delete-appliance/{{ a[0] }}" onclick="return confirm('Delete this appliance?')" style="color:#ef4444; background: rgba(239, 68, 68, 0.1); padding: 4px 8px; border-radius: 6px; font-size: 12px; transition: all 0.2s;">
+                           Remove
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            
+            <div class="glass-card" style="text-align: center; display: flex; flex-direction: column; justify-content: center;">
+                <h3>⚡ Test Data</h3>
+                <p style="margin-bottom: 16px; color: var(--text-secondary); font-size: 14px;">Generate random energy consumption data for testing.</p>
+                <a href="/generate-energy" style="text-decoration: none;">
+                    <button class="primary-btn" style="background: linear-gradient(135deg, #10b981, #059669);">Generate Energy</button>
+                </a>
+            </div>
+
+            <div class="glass-card" style="text-align: center; display: flex; flex-direction: column; justify-content: center;">
+                <h3>📥 Export</h3>
+                <p style="margin-bottom: 16px; color: var(--text-secondary); font-size: 14px;">Download your usage history as a CSV file.</p>
+                <a href="/download" style="text-decoration: none;">
+                    <button class="primary-btn" style="background: linear-gradient(135deg, #f59e0b, #d97706);">Download CSV</button>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Power BI Section -->
+    <div id="powerbi" style="display:none; animation: fadeIn 0.5s ease forwards;">
+        <div class="glass-card" style="text-align: center; padding: 40px 20px;">
+            <h3 style="margin-bottom: 16px; color: #0ea5e9;">📊 Advanced Power BI Analytics</h3>
+            <p style="color: var(--text-secondary); margin-bottom: 24px;">Your Power BI dashboard will be embedded here when you deploy online.</p>
+            <div style="background: rgba(0,0,0,0.05); border-radius: 12px; width: 100%; display: flex; justify-content: center; overflow: hidden;">
+                <iframe title="energyconsum_dashboard" width="100%" height="541.25" src="https://app.powerbi.com/reportEmbed?reportId=d5e3973b-acd9-4779-8d66-172152394985&autoAuth=true&ctid=56c1d497-700b-49cf-8f8d-3dd6b20d522f" frameborder="0" allowFullScreen="true" style="max-width: 1140px; border-radius: 8px;"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <div class="logout-wrap">
+        <a href="/logout">
+            <button>Logout Securely</button>
+        </a>
+    </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+function showSection(section){
+    document.getElementById("dashboard").style.display = "none";
+    document.getElementById("manage").style.display = "none";
+    document.getElementById("powerbi").style.display = "none";
+    document.getElementById(section).style.display = "block";
+    
+    document.getElementById("btn-dashboard").classList.remove("active");
+    document.getElementById("btn-manage").classList.remove("active");
+    document.getElementById("btn-powerbi").classList.remove("active");
+    document.getElementById("btn-" + section).classList.add("active");
+}
+
+function searchAppliance(){
+    let input = document.getElementById("searchBox").value.toLowerCase();
+    let items = document.querySelectorAll(".appliance-list li");
+
+    items.forEach(item => {
+        item.style.display =
+            item.innerText.toLowerCase().includes(input) ? "flex" : "none";
+    });
+}
+
+/* BAR CHART */
+const labels = {{ chart_labels | tojson }};
+const values = {{ chart_values | tojson }};
+
+// Use modern, softer colors for charts
+const modernColors = [
+    'rgba(59, 130, 246, 0.8)', // blue
+    'rgba(16, 185, 129, 0.8)', // emerald
+    'rgba(245, 158, 11, 0.8)', // amber
+    'rgba(139, 92, 246, 0.8)', // violet
+    'rgba(236, 72, 153, 0.8)', // pink
+    'rgba(14, 165, 233, 0.8)', // sky
+    'rgba(244, 63, 94, 0.8)'   // rose
+];
+
+const energyChart = new Chart(document.getElementById("energyChart"), {
+    type: "bar",
+    data: {
+        labels: labels,
+        datasets: [{
+            label: "Energy Consumption",
+            data: values,
+            backgroundColor: modernColors,
+            borderRadius: 6,
+            borderWidth: 0
+        }]
+    },
+    options: {
+        devicePixelRatio: 2,
+        animation: { duration: 800, easing: 'easeOutQuart' },
+        responsive: true,
+        maintainAspectRatio: false,
+
+        plugins: {
+            legend: {
+                labels: {
+                    color: "#1e293b",
+                    font: { family: "'Inter', sans-serif", size: 13, weight: "600" },
+                    usePointStyle: true,
+                    boxWidth: 8
+                }
+            },
+            tooltip: {
+                backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                titleFont: { family: "'Inter', sans-serif", size: 13 },
+                bodyFont: { family: "'Inter', sans-serif", size: 13 },
+                padding: 10,
+                cornerRadius: 8,
+                displayColors: false
+            }
+        },
+
+        scales: {
+            x: {
+                ticks: {
+                    color: "#64748b",
+                    font: { family: "'Inter', sans-serif", size: 12, weight: "500" }
+                },
+                grid: { display: false }
+            },
+            y: {
+                ticks: {
+                    color: "#64748b",
+                    font: { family: "'Inter', sans-serif", size: 12, weight: "500" }
+                },
+                grid: {
+                    color: "rgba(0,0,0,0.05)",
+                    borderDash: [5, 5]
+                },
+                border: { display: false }
+            }
+        }
+    }
+});
+
+/* PREDICTION LINE CHART */
+const trendLabels = {{ trend_labels | tojson }};
+const trendValues = {{ trend_values | tojson }};
+const predictedDayValue = {{ predicted_day_value | tojson }};
+const predictedDayLabel = {{ predicted_day_label | tojson }};
+
+let predictionLabels = [...trendLabels];
+let predictionValues = [...trendValues];
+
+if (predictedDayValue !== null) {
+    predictionLabels.push(predictedDayLabel + ' (Predicted)');
+    predictionValues.push(predictedDayValue);
+}
+
+const predictionChart = new Chart(document.getElementById("predictionChart"), {
+    type: "line",
+    data: {
+        labels: predictionLabels,
+        datasets: [{
+            label: "Actual + Predicted Energy",
+            data: predictionValues,
+            borderColor: 'rgba(59, 130, 246, 1)',
+            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+            borderWidth: 3,
+            tension: 0.4,
+            fill: true,
+            pointBackgroundColor: 'rgba(59, 130, 246, 1)',
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2,
+            pointRadius: 4,
+            pointHoverRadius: 6
+        }]
+    },
+    options: {
+        devicePixelRatio: 2,
+        animation: { duration: 800, easing: 'easeOutQuart' },
+        responsive: true,
+        maintainAspectRatio: false,
+
+        plugins: {
+            legend: {
+                labels: {
+                    color: "#1e293b",
+                    font: { family: "'Inter', sans-serif", size: 13, weight: "600" },
+                    usePointStyle: true,
+                    boxWidth: 8
+                }
+            },
+            tooltip: {
+                backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                titleFont: { family: "'Inter', sans-serif", size: 13 },
+                bodyFont: { family: "'Inter', sans-serif", size: 13 },
+                padding: 10,
+                cornerRadius: 8,
+                displayColors: false
+            }
+        },
+
+        scales: {
+            x: {
+                ticks: {
+                    color: "#64748b",
+                    font: { family: "'Inter', sans-serif", size: 12, weight: "500" }
+                },
+                grid: { display: false }
+            },
+            y: {
+                ticks: {
+                    color: "#64748b",
+                    font: { family: "'Inter', sans-serif", size: 12, weight: "500" }
+                },
+                grid: {
+                    color: "rgba(0,0,0,0.05)",
+                    borderDash: [5, 5]
+                },
+                border: { display: false }
+            }
+        }
+    }
+});
+
+/* DARK MODE CHART FIX */
+function updateChartTheme() {
+    const isDark = document.body.classList.contains("dark-mode");
+    const textColor = isDark ? "#94a3b8" : "#64748b";
+    const legendColor = isDark ? "#f8fafc" : "#1e293b";
+    const gridColor = isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)";
+
+    // Update Energy Chart
+    energyChart.options.plugins.legend.labels.color = legendColor;
+    energyChart.options.scales.x.ticks.color = textColor;
+    energyChart.options.scales.y.ticks.color = textColor;
+    energyChart.options.scales.y.grid.color = gridColor;
+    energyChart.update();
+
+    // Update Prediction Chart
+    predictionChart.options.plugins.legend.labels.color = legendColor;
+    predictionChart.options.scales.x.ticks.color = textColor;
+    predictionChart.options.scales.y.ticks.color = textColor;
+    predictionChart.options.scales.y.grid.color = gridColor;
+    predictionChart.update();
+}
+
+// Initial theme call
+setTimeout(updateChartTheme, 100);
+</script>
+
+{% endblock %}
