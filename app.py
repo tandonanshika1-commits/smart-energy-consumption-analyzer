@@ -42,7 +42,7 @@ def home():
 
     if start_date and end_date:
         cursor.execute("""
-            SELECT a.name, e.energy, TO_CHAR(e.time,'DD-MM-YYYY HH12:MI AM')
+            SELECT a.name, e.energy, TO_CHAR(e.time AT TIME ZONE'UTC' AT TIME ZONE'Asia/Kolkata','DD-MM-YYYY HH12:MI AM')
             FROM energy_usage e
             JOIN appliances a ON e.appliance_id=a.id
             WHERE e.user_id=%s
@@ -51,7 +51,7 @@ def home():
         """, (user_id, start_date, end_date))
     else:
         cursor.execute("""
-            SELECT a.name, e.energy, TO_CHAR(e.time,'DD-MM-YYYY HH12:MI AM')
+            SELECT a.name, e.energy, TO_CHAR(e.time AT TIME ZONE'UTC' AT TIME ZONE'Asia/Kolkata','DD-MM-YYYY HH12:MI AM')
             FROM energy_usage e
             JOIN appliances a ON e.appliance_id=a.id
             WHERE e.user_id=%s
